@@ -1,586 +1,511 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, 
-} from 'recharts';
-import { 
-  LayoutDashboard, 
-  Briefcase, 
-  User, 
-  TrendingUp, 
-  Plus, 
-  Trash2, 
-  Target, 
-  Receipt, 
-  Calendar,
-  Bell,
-  Search,
-  AlertCircle,
-  Clock,
-  CheckCircle2,
-  ChevronRight,
-  Edit3,
-  Save,
-  X,
-  DollarSign,
-  Crown,
-  ArrowLeft
-} from 'lucide-react';
-
-const App = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({});
-  
-  // Persistencia Local (LocalStorage)
-  const [entries, setEntries] = useState(() => {
-    try {
-      const saved = localStorage.getItem('finanzas_pro_gold_entries');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
-
-  const [strategyParams, setStrategyParams] = useState(() => {
-    try {
-      const saved = localStorage.getItem('finanzas_pro_gold_strategy');
-      return saved ? JSON.parse(saved) : { fixedCosts: 0, productPrice: 0, productCost: 0, targetProfit: 0 };
-    } catch { return { fixedCosts: 0, productPrice: 0, productCost: 0, targetProfit: 0 }; }
-  });
-
-  const [reminders, setReminders] = useState(() => {
-    try {
-      const saved = localStorage.getItem('finanzas_pro_gold_reminders');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
-
-  useEffect(() => {
-    localStorage.setItem('finanzas_pro_gold_entries', JSON.stringify(entries));
-    localStorage.setItem('finanzas_pro_gold_strategy', JSON.stringify(strategyParams));
-    localStorage.setItem('finanzas_pro_gold_reminders', JSON.stringify(reminders));
-  }, [entries, strategyParams, reminders]);
-
-  // Cálculos de Inteligencia Financiera
-  const stats = useMemo(() => {
-    const bIn = entries.filter(e => e.category === 'negocio' && e.type === 'ingreso').reduce((a, c) => a + c.amount, 0);
-    const bOut = entries.filter(e => e.category === 'negocio' && e.type === 'gasto').reduce((a, c) => a + c.amount, 0);
-    const pIn = entries.filter(e => e.category === 'personal' && e.type === 'ingreso').reduce((a, c) => a + c.amount, 0);
-    const pOut = entries.filter(e => e.category === 'personal' && e.type === 'gasto').reduce((a, c) => a + c.amount, 0);
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LionTech Solutions | Quantum Finance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
-    const marginPerUnit = strategyParams.productPrice - strategyParams.productCost;
-    const breakEvenUnits = marginPerUnit > 0 ? strategyParams.fixedCosts / marginPerUnit : 0;
-    const targetUnits = marginPerUnit > 0 ? (strategyParams.fixedCosts + strategyParams.targetProfit) / marginPerUnit : 0;
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;400;600;800&family=Cinzel:wght@400;700&display=swap');
+        
+        :root {
+            --gold: #E2B04E;
+            --gold-dark: #8A6623;
+            --onyx: #050505;
+            --glass: rgba(15, 15, 15, 0.7);
+        }
 
-    const currentProfit = bIn - bOut;
-    const progressToTarget = strategyParams.targetProfit > 0 ? (currentProfit / strategyParams.targetProfit) * 100 : 0;
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--onyx);
+            color: #E2E2E2;
+            overflow: hidden;
+            cursor: crosshair;
+        }
 
-    const today = new Date();
-    const urgentReminders = reminders.filter(r => {
-      const dueDate = new Date(r.date);
-      const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
-      return diffDays <= 15 && !r.completed;
-    });
+        .luxury-font { font-family: 'Cinzel', serif; }
 
-    return {
-      netBusiness: currentProfit,
-      netPersonal: pIn - pOut,
-      totalCash: (bIn - bOut) + (pIn - pOut),
-      marginRatio: strategyParams.productPrice > 0 ? ((marginPerUnit / strategyParams.productPrice) * 100).toFixed(1) : "0.0",
-      monthlyTarget: Math.ceil(targetUnits),
-      breakEvenUnits: Math.ceil(breakEvenUnits),
-      progressToTarget: Math.min(100, Math.max(0, progressToTarget)),
-      urgentReminders
-    };
-  }, [entries, strategyParams, reminders]);
+        /* Background Particle Effect */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            opacity: 0.3;
+            pointer-events: none;
+        }
 
-  const addEntry = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const amount = parseFloat(formData.get('amount'));
-    if (isNaN(amount) || amount <= 0) return;
+        .quantum-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
+            backdrop-filter: blur(25px);
+            border: 1px solid rgba(226, 176, 78, 0.12);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+        }
 
-    const entry = {
-      id: Date.now(),
-      category: formData.get('category'),
-      type: formData.get('type'),
-      amount: amount,
-      description: formData.get('description'),
-      project: formData.get('project') || 'General',
-      date: new Date().toISOString().split('T')[0]
-    };
-    setEntries([entry, ...entries]);
-    e.target.reset();
-  };
+        .quantum-card:hover {
+            border-color: rgba(226, 176, 78, 0.4);
+            transform: translateY(-5px) scale(1.01);
+            box-shadow: 0 0 40px rgba(226, 176, 78, 0.05);
+        }
 
-  const startEdit = (entry) => {
-    setEditingId(entry.id);
-    setEditForm(entry);
-  };
+        .gold-shimmer {
+            background: linear-gradient(90deg, #8A6623, #E2B04E, #8A6623);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 4s linear infinite;
+        }
 
-  const saveEdit = () => {
-    setEntries(entries.map(e => e.id === editingId ? editForm : e));
-    setEditingId(null);
-  };
+        @keyframes shimmer {
+            to { background-position: 200% center; }
+        }
 
-  const addReminder = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const amount = parseFloat(formData.get('amount'));
-    if (isNaN(amount)) return;
+        .logo-container {
+            position: relative;
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
 
-    const reminder = {
-      id: Date.now(),
-      title: formData.get('title'),
-      amount: amount,
-      date: formData.get('date'),
-      type: formData.get('type'),
-      completed: false
-    };
-    setReminders([...reminders, reminder]);
-    e.target.reset();
-  };
+        .logo-container:hover {
+            transform: scale(1.1) rotate(-1deg);
+        }
 
-  const toggleReminder = (id) => {
-    setReminders(reminders.map(r => r.id === id ? {...r, completed: !r.completed} : r));
-  };
+        .logo-scan-effect::after {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(to bottom, transparent, rgba(226, 176, 78, 0.15), transparent);
+            transform: rotate(45deg);
+            animation: scan 4s infinite linear;
+            pointer-events: none;
+        }
 
-  const deleteEntry = (id) => setEntries(entries.filter(e => e.id !== id));
-  const deleteReminder = (id) => setReminders(reminders.filter(r => r.id !== id));
+        @keyframes scan {
+            0% { transform: rotate(45deg) translateY(-100%); }
+            100% { transform: rotate(45deg) translateY(100%); }
+        }
 
-  const formatColones = (val) => `₡${Math.abs(val).toLocaleString('es-CR')}`;
+        .glow-btn {
+            position: relative;
+            overflow: hidden;
+            transition: 0.4s;
+            border: 1px solid var(--gold-dark);
+        }
 
-  const SidebarItem = ({ id, icon: Icon, label }) => (
-    <button 
-      onClick={() => setActiveTab(id)} 
-      className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-300 ${activeTab === id ? 'bg-gradient-to-r from-[#D4AF37] to-[#F9E29C] text-black shadow-[0_0_20px_rgba(212,175,55,0.3)]' : 'text-zinc-500 hover:text-white hover:bg-zinc-800'}`}
-    >
-      <Icon size={20} className={activeTab === id ? 'text-black' : 'text-zinc-600'} />
-      <span className={`text-sm tracking-wide font-bold uppercase ${activeTab === id ? 'opacity-100' : 'opacity-70'}`}>{label}</span>
-    </button>
-  );
+        .glow-btn:hover {
+            box-shadow: 0 0 20px rgba(226, 176, 78, 0.3);
+            background: var(--gold);
+            color: black !important;
+        }
 
-  return (
-    <div className="min-h-screen bg-[#0A0A0A] flex font-sans text-zinc-200 selection:bg-[#D4AF37] selection:text-black">
-      {/* Sidebar de Lujo */}
-      <aside className="hidden lg:flex flex-col w-72 bg-[#0F0F0F] border-r border-zinc-800/50 h-screen sticky top-0 shadow-2xl z-30">
-        <div className="p-10">
-          <div className="flex items-center gap-3 mb-12">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#D4AF37] to-[#996515] rounded-xl flex items-center justify-center shadow-lg transform rotate-3">
-              <Crown size={22} className="text-black" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-black tracking-tighter text-white leading-none">PRESTIGE</span>
-              <span className="text-[10px] font-bold text-[#D4AF37] tracking-[0.2em] uppercase">Executive Finance</span>
-            </div>
-          </div>
+        .sidebar-glow {
+            box-shadow: inset -20px 0 50px rgba(0,0,0,0.5);
+        }
 
-          <nav className="space-y-3">
-            <SidebarItem id="dashboard" icon={LayoutDashboard} label="Dashboard" />
-            <SidebarItem id="ledger" icon={Receipt} label="Libro Diario" />
-            <SidebarItem id="calendar" icon={Calendar} label="Previsiones" />
-            <SidebarItem id="strategy" icon={Target} label="Estrategia" />
-          </nav>
-        </div>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--gold-dark); border-radius: 10px; }
 
-        <div className="mt-auto p-8">
-          <div className="bg-gradient-to-b from-zinc-800 to-zinc-900 rounded-[2rem] p-6 border border-zinc-700/30">
-            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Liquidez Total</p>
-            <p className="text-2xl font-black text-white truncate">{formatColones(stats.totalCash)}</p>
-          </div>
-        </div>
-      </aside>
+        .active-tab-indicator {
+            filter: drop-shadow(0 0 8px var(--gold));
+        }
 
-      {/* Main View */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[radial-gradient(circle_at_top_right,_#1a1a1a,_#0a0a0a)]">
-        <header className="px-10 py-6 flex items-center justify-between border-b border-zinc-800/40 backdrop-blur-md sticky top-0 z-20">
-          <div className="flex items-center gap-4">
-             {activeTab !== 'dashboard' && (
-                <button 
-                  onClick={() => setActiveTab('dashboard')}
-                  className="p-2 hover:bg-zinc-800 rounded-full text-[#D4AF37] transition-colors"
-                  title="Volver al Dashboard"
-                >
-                  <ArrowLeft size={20} />
-                </button>
-             )}
-             <h1 className="text-sm font-black text-[#D4AF37] uppercase tracking-[0.3em]">Gestión de Alto Nivel</h1>
-          </div>
-          <div className="flex items-center gap-6">
-             <div className="relative">
-              <button 
-                onClick={() => setActiveTab('calendar')}
-                className={`p-2.5 rounded-full border border-zinc-800 ${stats.urgentReminders.length > 0 ? 'bg-[#D4AF37]/10 text-[#D4AF37]' : 'text-zinc-500 hover:text-white'}`}
-              >
-                <Bell size={20} />
-                {stats.urgentReminders.length > 0 && <span className="absolute top-0 right-0 w-3 h-3 bg-[#D4AF37] rounded-full border-2 border-black animate-pulse"></span>}
-              </button>
-            </div>
-            <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-[#D4AF37] text-xs">CR</div>
-          </div>
-        </header>
+        .fade-up {
+            animation: fadeUp 0.8s ease-out forwards;
+        }
 
-        <div className="p-10 overflow-y-auto max-w-7xl mx-auto w-full">
-          {activeTab === 'dashboard' && (
-            <div className="space-y-12 animate-in fade-in duration-700">
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                <div>
-                  <h2 className="text-5xl font-black text-white tracking-tighter mb-2">Bienvenido</h2>
-                  <p className="text-zinc-500 font-medium italic">"El éxito financiero comienza con el orden."</p>
-                </div>
-                <div className="bg-zinc-900/50 p-6 rounded-3xl border border-zinc-800 min-w-[240px]">
-                  <p className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest mb-1">Salud del Negocio</p>
-                  <div className="flex items-center gap-3">
-                    <div className="h-2 flex-1 bg-zinc-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-[#996515] to-[#D4AF37] transition-all duration-1000" style={{width: `${stats.progressToTarget}%`}}></div>
-                    </div>
-                    <span className="text-xs font-black text-white">{stats.progressToTarget.toFixed(0)}%</span>
-                  </div>
-                </div>
-              </div>
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="bg-canvas"></canvas>
+    <div id="root"></div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {[
-                  { label: "Negocio Neto", val: stats.netBusiness, icon: Briefcase, color: "text-[#D4AF37]" },
-                  { label: "Capital Privado", val: stats.netPersonal, icon: User, color: "text-zinc-400" },
-                  { label: "Proyectado 15d", val: stats.urgentReminders.reduce((a, c) => c.type === 'cobro' ? a + c.amount : a - c.amount, 0), icon: Clock, color: "text-zinc-400" },
-                  { label: "Meta Mensual", val: stats.monthlyTarget, icon: Target, color: "text-[#D4AF37]", isUnit: true },
-                ].map((item, i) => (
-                  <div key={i} className="bg-[#111] p-8 rounded-[2rem] border border-zinc-800 hover:border-[#D4AF37]/30 transition-all group relative overflow-hidden">
-                    <div className="p-3 bg-zinc-800 rounded-xl group-hover:bg-[#D4AF37]/10 transition-colors w-fit mb-6">
-                      <item.icon size={20} className={item.color} />
-                    </div>
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{item.label}</p>
-                    <p className="text-3xl font-black text-white">{item.isUnit ? item.val : formatColones(item.val)}</p>
-                  </div>
-                ))}
-              </div>
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+        const { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = window.Recharts;
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                <div className="lg:col-span-2 bg-gradient-to-br from-[#111] to-[#0A0A0A] p-10 rounded-[3rem] border border-zinc-800 shadow-xl">
-                  <div className="flex justify-between items-center mb-10">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-3">
-                      <TrendingUp size={20} className="text-[#D4AF37]" />
-                      Análisis de Flujo
-                    </h3>
-                    <button onClick={() => setActiveTab('ledger')} className="text-[10px] font-black text-[#D4AF37] hover:underline uppercase tracking-widest">Ver Todo</button>
-                  </div>
-                  <div className="h-[350px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={entries.length > 0 ? entries.slice(0, 15).reverse() : [{date: '', amount: 0}]}>
-                        <defs>
-                          <linearGradient id="goldGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.2}/>
-                            <stop offset="100%" stopColor="#D4AF37" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#222" />
-                        <XAxis dataKey="date" hide />
-                        <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#666'}} />
-                        <Tooltip contentStyle={{backgroundColor: '#111', border: '1px solid #333', borderRadius: '12px', color: '#fff'}} />
-                        <Area type="monotone" dataKey="amount" stroke="#D4AF37" strokeWidth={4} fill="url(#goldGradient)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
+        // Particle background initialization
+        const initParticles = () => {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            let particles = [];
+            
+            class Particle {
+                constructor() {
+                    this.x = Math.random() * canvas.width;
+                    this.y = Math.random() * canvas.height;
+                    this.size = Math.random() * 1.2;
+                    this.speedX = Math.random() * 0.4 - 0.2;
+                    this.speedY = Math.random() * 0.4 - 0.2;
+                }
+                update() {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    if (this.x > canvas.width) this.x = 0;
+                    if (this.x < 0) this.x = canvas.width;
+                    if (this.y > canvas.height) this.y = 0;
+                    if (this.y < 0) this.y = canvas.height;
+                }
+                draw() {
+                    ctx.fillStyle = 'rgba(226, 176, 78, 0.3)';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
 
-                <div className="bg-[#111] rounded-[3rem] p-10 border border-zinc-800 flex flex-col shadow-xl">
-                  <h4 className="text-sm font-black uppercase tracking-widest text-[#D4AF37] mb-8 flex items-center gap-2">
-                    <Clock size={16} /> Próximos Pagos
-                  </h4>
-                  <div className="space-y-6 flex-1">
-                    {stats.urgentReminders.length > 0 ? (
-                      stats.urgentReminders.slice(0, 4).map(r => (
-                        <div key={r.id} className="flex gap-4 p-4 bg-zinc-800/30 rounded-2xl border border-zinc-700/20 hover:bg-zinc-800 transition-colors">
-                          <div className={`p-2 rounded-lg h-fit ${r.type === 'pago' ? 'bg-red-950/20 text-red-500' : 'bg-emerald-950/20 text-emerald-500'}`}>
-                            <AlertCircle size={18} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-white truncate">{r.title}</p>
-                            <p className="text-[10px] text-zinc-500 font-bold uppercase">{r.date} • {formatColones(r.amount)}</p>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
-                        <CheckCircle2 size={40} className="text-zinc-700 mb-4" />
-                        <p className="text-zinc-600 font-bold text-sm italic">Sin cobros o pagos pendientes para los próximos 15 días.</p>
-                      </div>
-                    )}
-                  </div>
-                  <button onClick={() => setActiveTab('calendar')} className="mt-8 w-full py-4 bg-zinc-800 text-white font-black rounded-2xl hover:bg-zinc-700 transition-all text-[10px] uppercase tracking-widest border border-zinc-700">Gestionar Alertas</button>
-                </div>
-              </div>
-            </div>
-          )}
+            for(let i=0; i<80; i++) particles.push(new Particle());
 
-          {activeTab === 'ledger' && (
-            <div className="space-y-12 animate-in slide-in-from-bottom-8 duration-500">
-               <div className="flex items-center justify-between">
-                  <h2 className="text-3xl font-black text-white tracking-tighter">Libro de Transacciones</h2>
-                  <button onClick={() => setActiveTab('dashboard')} className="p-3 bg-zinc-800 rounded-full hover:bg-zinc-700 text-zinc-400 hover:text-white transition-all">
-                    <X size={20} />
-                  </button>
-               </div>
-               <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
-                <div className="xl:col-span-4 bg-zinc-900/50 p-10 rounded-[3rem] border border-zinc-800 shadow-2xl h-fit">
-                  <h3 className="text-xl font-black text-white mb-8">Nueva Operación</h3>
-                  <form onSubmit={addEntry} className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[10px] font-black text-zinc-500 uppercase block mb-2 tracking-widest">Ámbito</label>
-                        <select name="category" className="w-full bg-zinc-800 border border-zinc-700 p-4 rounded-2xl text-xs font-bold text-white focus:border-[#D4AF37] outline-none">
-                          <option value="negocio">NEGOCIO</option>
-                          <option value="personal">PERSONAL</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black text-zinc-500 uppercase block mb-2 tracking-widest">Tipo</label>
-                        <select name="type" className="w-full bg-zinc-800 border border-zinc-700 p-4 rounded-2xl text-xs font-bold text-white focus:border-[#D4AF37] outline-none">
-                          <option value="ingreso">INGRESO</option>
-                          <option value="gasto">EGRESO</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black text-zinc-500 uppercase block mb-2 tracking-widest">Proyecto / Referencia</label>
-                      <input name="project" className="w-full bg-zinc-800 border border-zinc-700 p-4 rounded-2xl text-xs font-bold text-white placeholder:text-zinc-600 focus:border-[#D4AF37] outline-none" placeholder="EJ: Venta Producto X" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black text-zinc-500 uppercase block mb-2 tracking-widest">Monto Neto (₡)</label>
-                      <input name="amount" type="number" required step="any" className="w-full bg-zinc-800 border border-zinc-700 p-5 rounded-2xl text-2xl font-black text-[#D4AF37] outline-none focus:ring-1 ring-[#D4AF37]" placeholder="0.00" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black text-zinc-500 uppercase block mb-2 tracking-widest">Descripción</label>
-                      <input name="description" required className="w-full bg-zinc-800 border border-zinc-700 p-4 rounded-2xl text-sm font-bold text-white outline-none" placeholder="Detalle de la transacción" />
-                    </div>
-                    <button type="submit" className="w-full py-5 bg-gradient-to-r from-[#D4AF37] to-[#996515] text-black font-black rounded-2xl hover:scale-[1.02] transition-all shadow-xl shadow-[#D4AF37]/10 uppercase tracking-widest text-sm">
-                      Registrar Ahora
-                    </button>
-                  </form>
-                </div>
+            const animate = () => {
+                ctx.clearRect(0,0, canvas.width, canvas.height);
+                particles.forEach(p => { p.update(); p.draw(); });
+                requestAnimationFrame(animate);
+            };
+            animate();
+        };
 
-                <div className="xl:col-span-8 bg-[#111] rounded-[3rem] border border-zinc-800 overflow-hidden shadow-2xl">
-                  <div className="px-10 py-8 border-b border-zinc-800 bg-zinc-800/20">
-                    <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Auditoría de Movimientos</h4>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="bg-black/20">
-                          <th className="px-10 py-5 text-[10px] font-black text-zinc-500 uppercase text-left">Detalle</th>
-                          <th className="px-10 py-5 text-[10px] font-black text-zinc-500 uppercase text-left">Origen</th>
-                          <th className="px-10 py-5 text-[10px] font-black text-zinc-500 uppercase text-right">Monto</th>
-                          <th className="px-10 py-5 text-right">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-zinc-800/50">
-                        {entries.length > 0 ? entries.map(e => (
-                          <tr key={e.id} className="group hover:bg-zinc-800/20 transition-colors">
-                            <td className="px-10 py-6">
-                              {editingId === e.id ? (
-                                <input 
-                                  value={editForm.description} 
-                                  onChange={(evt) => setEditForm({...editForm, description: evt.target.value})}
-                                  className="bg-zinc-800 border border-[#D4AF37] text-sm font-bold p-2 rounded-lg text-white w-full"
-                                />
-                              ) : (
-                                <div>
-                                  <p className="text-sm font-black text-white">{e.description}</p>
-                                  <p className="text-[10px] font-bold text-zinc-600 uppercase mt-1">{e.date}</p>
+        const Icon = ({ name, size = 18, className = "" }) => {
+            useEffect(() => { if (window.lucide) window.lucide.createIcons(); }, [name]);
+            return <i data-lucide={name} style={{ width: size, height: size }} className={className}></i>;
+        };
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [entries, setEntries] = useState(() => JSON.parse(localStorage.getItem('lt_quantum_entries')) || []);
+            const [strategy, setStrategy] = useState(() => JSON.parse(localStorage.getItem('lt_quantum_strat')) || { fixed: 200000, price: 15000, cost: 4500, target: 1000000 });
+
+            // Updated logo URL from direct Supabase storage
+            const LOGO_URL = "https://hceckxfxmieqyjafdtqb.supabase.co/storage/v1/object/public/facturas/LionTech_Solutions-removebg-preview.png";
+
+            useEffect(() => {
+                localStorage.setItem('lt_quantum_entries', JSON.stringify(entries));
+                localStorage.setItem('lt_quantum_strat', JSON.stringify(strategy));
+                initParticles();
+            }, [entries, strategy]);
+
+            const stats = useMemo(() => {
+                const business = entries.filter(e => e.cat === 'biz').reduce((a,c) => a + (c.type === 'in' ? c.amt : -c.amt), 0);
+                const personal = entries.filter(e => e.cat === 'pers').reduce((a,c) => a + (c.type === 'in' ? c.amt : -c.amt), 0);
+                const margin = strategy.price - strategy.cost;
+                return {
+                    bizBalance: business,
+                    persBalance: personal,
+                    total: business + personal,
+                    breakEven: Math.ceil(strategy.fixed / (margin || 1)),
+                    growth: entries.length > 5 ? 'Optimizado' : 'Fase Inicial'
+                };
+            }, [entries, strategy]);
+
+            const format = (v) => `₡${Math.abs(v).toLocaleString('es-CR')}`;
+
+            return (
+                <div className="relative z-10 flex h-screen w-full select-none">
+                    
+                    {/* Sidebar: Digital Throne */}
+                    <aside className="w-80 bg-[#080808]/95 backdrop-blur-3xl border-r border-white/5 flex flex-col sidebar-glow">
+                        <div className="p-10">
+                            <div className="flex flex-col items-center text-center mb-16">
+                                <div className="logo-container group mb-6">
+                                    {/* Ambient Glow */}
+                                    <div className="absolute -inset-10 bg-[#E2B04E]/10 blur-3xl rounded-full opacity-40 group-hover:opacity-100 transition duration-1000"></div>
+                                    
+                                    <div className="relative w-44 h-44 flex items-center justify-center overflow-hidden logo-scan-effect">
+                                        <img 
+                                            src={LOGO_URL}
+                                            alt="LionTech Solutions Logo" 
+                                            className="w-full h-full object-contain drop-shadow-[0_0_25px_rgba(226,176,78,0.5)]"
+                                            onError={(e) => {
+                                                e.target.onerror = null;
+                                                e.target.src = 'https://via.placeholder.com/150?text=LionTech';
+                                            }}
+                                        />
+                                    </div>
                                 </div>
-                              )}
-                            </td>
-                            <td className="px-10 py-6">
-                               {editingId === e.id ? (
-                                <input 
-                                  value={editForm.project} 
-                                  onChange={(evt) => setEditForm({...editForm, project: evt.target.value})}
-                                  className="bg-zinc-800 border border-[#D4AF37] text-xs font-bold p-2 rounded-lg text-white w-full"
-                                />
-                              ) : (
-                                <span className="text-[10px] font-black px-3 py-1 bg-zinc-800 text-[#D4AF37] rounded-md uppercase tracking-wider">{e.project}</span>
-                              )}
-                            </td>
-                            <td className="px-10 py-6 text-right">
-                               {editingId === e.id ? (
-                                <input 
-                                  type="number"
-                                  value={editForm.amount} 
-                                  onChange={(evt) => setEditForm({...editForm, amount: parseFloat(evt.target.value) || 0})}
-                                  className="bg-zinc-800 border border-[#D4AF37] text-sm font-black p-2 rounded-lg text-[#D4AF37] w-28 text-right"
-                                />
-                              ) : (
-                                <p className={`text-base font-black ${e.type === 'ingreso' ? 'text-[#D4AF37]' : 'text-zinc-500'}`}>
-                                  {e.type === 'ingreso' ? '+' : '-'}{formatColones(e.amount)}
-                                </p>
-                              )}
-                            </td>
-                            <td className="px-10 py-6 text-right">
-                              {editingId === e.id ? (
-                                <div className="flex justify-end gap-2">
-                                  <button onClick={saveEdit} className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-lg"><Save size={18} /></button>
-                                  <button onClick={() => setEditingId(null)} className="p-2 text-zinc-500 hover:bg-zinc-500/10 rounded-lg"><X size={18} /></button>
-                                </div>
-                              ) : (
-                                <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button onClick={() => startEdit(e)} className="p-2 text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded-lg"><Edit3 size={18} /></button>
-                                  <button onClick={() => deleteEntry(e.id)} className="p-2 text-zinc-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg"><Trash2 size={18} /></button>
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        )) : (
-                          <tr><td colSpan="4" className="py-20 text-center text-zinc-700 italic font-bold">Sin transacciones registradas.</td></tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'calendar' && (
-            <div className="space-y-12 animate-in fade-in zoom-in-95 duration-500">
-               <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-4xl font-black text-white tracking-tighter mb-2">Previsiones</h2>
-                    <p className="text-zinc-500 text-sm">Gestiona tus próximos cobros y compromisos de pago.</p>
-                  </div>
-                  <button onClick={() => setActiveTab('dashboard')} className="p-4 bg-zinc-800 rounded-2xl hover:bg-zinc-700 text-[#D4AF37] transition-all flex items-center gap-2 font-black text-xs uppercase tracking-widest">
-                    <X size={18} /> Salir
-                  </button>
-               </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-                <div className="bg-[#111] p-10 rounded-[3rem] border border-zinc-800 shadow-2xl h-fit">
-                  <h3 className="text-xl font-black text-white mb-8">Programar Alerta</h3>
-                  <form onSubmit={addReminder} className="space-y-6">
-                    <div>
-                      <label className="text-[10px] font-black text-zinc-500 uppercase block mb-2 tracking-widest">Concepto</label>
-                      <input name="title" required className="w-full bg-zinc-800 border border-zinc-700 p-4 rounded-2xl text-sm font-bold text-white outline-none focus:border-[#D4AF37]" placeholder="Ej: Factura Cliente ABC" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black text-zinc-500 uppercase block mb-2 tracking-widest">Fecha de Vencimiento</label>
-                      <input name="date" type="date" required className="w-full bg-zinc-800 border border-zinc-700 p-4 rounded-2xl text-sm font-bold text-white outline-none focus:border-[#D4AF37]" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[10px] font-black text-zinc-500 uppercase block mb-2 tracking-widest">Monto (₡)</label>
-                        <input name="amount" type="number" required step="any" className="w-full bg-zinc-800 border border-zinc-700 p-4 rounded-2xl text-sm font-black text-white outline-none focus:border-[#D4AF37]" placeholder="0" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black text-zinc-500 uppercase block mb-2 tracking-widest">Acción</label>
-                        <select name="type" className="w-full bg-zinc-800 border border-zinc-700 p-4 rounded-2xl text-xs font-bold text-white outline-none">
-                          <option value="pago">TENGO QUE PAGAR</option>
-                          <option value="cobro">ME VAN A PAGAR</option>
-                        </select>
-                      </div>
-                    </div>
-                    <button type="submit" className="w-full py-5 bg-[#D4AF37] text-black font-black rounded-2xl hover:scale-[1.02] transition-all uppercase tracking-widest text-sm shadow-lg shadow-[#D4AF37]/10">
-                      Añadir al Calendario
-                    </button>
-                  </form>
-                </div>
-
-                <div className="lg:col-span-2 space-y-4">
-                   {reminders.length > 0 ? reminders.sort((a,b) => new Date(a.date) - new Date(b.date)).map(r => {
-                      const dueDate = new Date(r.date);
-                      const diff = Math.ceil((dueDate - new Date()) / (1000 * 60 * 60 * 24));
-                      const isUrgent = diff <= 7 && !r.completed;
-                      const isPast = diff < 0 && !r.completed;
-                      
-                      return (
-                        <div key={r.id} className={`p-6 rounded-[2rem] border transition-all flex items-center justify-between ${r.completed ? 'bg-zinc-900/20 opacity-40 border-zinc-800' : isUrgent ? 'bg-gradient-to-r from-[#1a1a1a] to-amber-950/10 border-amber-800/30' : 'bg-[#111] border-zinc-800'}`}>
-                          <div className="flex items-center gap-5">
-                            <button onClick={() => toggleReminder(r.id)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${r.completed ? 'bg-emerald-500 text-black' : 'bg-zinc-800 text-zinc-600 border border-zinc-700'}`}>
-                              <CheckCircle2 size={20} />
-                            </button>
-                            <div>
-                              <div className="flex items-center gap-3">
-                                <h5 className={`text-base font-black ${r.completed ? 'line-through text-zinc-600' : 'text-white'}`}>{r.title}</h5>
-                                {!r.completed && (
-                                  <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${isPast ? 'bg-red-600 text-white' : isUrgent ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-[#D4AF37]'}`}>
-                                    {isPast ? 'Vencido' : diff === 0 ? 'Hoy' : `En ${diff}d`}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[10px] font-bold text-zinc-500 mt-0.5 uppercase tracking-tighter">
-                                {r.date} • {formatColones(r.amount)} • <span className={r.type === 'cobro' ? 'text-emerald-500' : 'text-amber-500'}>{r.type === 'cobro' ? 'COBRO' : 'OBLIGACIÓN'}</span>
-                              </p>
+                                <h1 className="luxury-font text-2xl font-bold tracking-[0.2em] gold-shimmer uppercase">LionTech</h1>
+                                <p className="text-[8px] font-black tracking-[0.5em] text-zinc-600 uppercase mt-2">Solutions Group</p>
                             </div>
-                          </div>
-                          <button onClick={() => deleteReminder(r.id)} className="p-3 text-zinc-700 hover:text-red-500 transition-colors">
-                            <Trash2 size={18} />
-                          </button>
+
+                            <nav className="space-y-3">
+                                {[
+                                    { id: 'dashboard', icon: 'shield', label: 'Estrategia Central' },
+                                    { id: 'ledger', icon: 'database', label: 'Libro Mayor' },
+                                    { id: 'strategy', icon: 'trending-up', label: 'Escalamiento' }
+                                ].map(t => (
+                                    <button 
+                                        key={t.id}
+                                        onClick={() => setActiveTab(t.id)}
+                                        className={`w-full flex items-center gap-5 px-6 py-5 rounded-2xl transition-all relative group ${activeTab === t.id ? 'bg-white/5 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}
+                                    >
+                                        {activeTab === t.id && <div className="absolute left-0 w-1 h-6 bg-[#E2B04E] rounded-full active-tab-indicator"></div>}
+                                        <Icon name={t.icon} className={activeTab === t.id ? 'text-[#E2B04E]' : 'group-hover:text-zinc-400'} />
+                                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">{t.label}</span>
+                                    </button>
+                                ))}
+                            </nav>
                         </div>
-                      );
-                    }) : (
-                      <div className="p-20 text-center text-zinc-700 italic font-bold">No hay eventos programados.</div>
-                    )}
-                </div>
-              </div>
-            </div>
-          )}
 
-          {activeTab === 'strategy' && (
-            <div className="max-w-6xl mx-auto py-12 animate-in fade-in duration-500">
-               <div className="flex items-center justify-between mb-12">
-                  <h2 className="text-3xl font-black text-white tracking-tighter">Configuración Estratégica</h2>
-                  <button onClick={() => setActiveTab('dashboard')} className="p-3 bg-zinc-800 rounded-full hover:bg-zinc-700 text-zinc-400 transition-all">
-                    <X size={20} />
-                  </button>
-               </div>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-16">
-                <div className="bg-[#111] p-10 rounded-[3rem] border border-zinc-800 shadow-2xl">
-                  <h4 className="text-xs font-black uppercase tracking-[0.3em] text-[#D4AF37] border-b border-zinc-800 pb-6 mb-8">Costos de Operación</h4>
-                  <div className="space-y-6">
-                    <div>
-                      <label className="text-[10px] font-black text-zinc-500 block mb-2 uppercase tracking-widest">Gastos Fijos Mensuales (₡)</label>
-                      <input type="number" value={strategyParams.fixedCosts} onChange={(e) => setStrategyParams({...strategyParams, fixedCosts: parseFloat(e.target.value) || 0})} className="w-full bg-zinc-800/50 border border-zinc-700 p-4 rounded-2xl font-black text-xl text-white outline-none focus:border-[#D4AF37]" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black text-zinc-500 block mb-2 uppercase tracking-widest">Costo por Unidad de Producto (₡)</label>
-                      <input type="number" value={strategyParams.productCost} onChange={(e) => setStrategyParams({...strategyParams, productCost: parseFloat(e.target.value) || 0})} className="w-full bg-zinc-800/50 border border-zinc-700 p-4 rounded-2xl font-black text-xl text-white outline-none focus:border-[#D4AF37]" />
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-[#111] p-10 rounded-[3rem] border border-zinc-800 shadow-2xl">
-                  <h4 className="text-xs font-black uppercase tracking-[0.3em] text-[#D4AF37] border-b border-zinc-800 pb-6 mb-8">Objetivos de Venta</h4>
-                  <div className="space-y-6">
-                    <div>
-                      <label className="text-[10px] font-black text-zinc-500 block mb-2 uppercase tracking-widest">Precio de Venta al Público (₡)</label>
-                      <input type="number" value={strategyParams.productPrice} onChange={(e) => setStrategyParams({...strategyParams, productPrice: parseFloat(e.target.value) || 0})} className="w-full bg-zinc-800/50 border border-zinc-700 p-4 rounded-2xl font-black text-xl text-white outline-none focus:border-[#D4AF37]" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black text-zinc-500 block mb-2 uppercase tracking-widest">Ganancia Neta Mensual Deseada (₡)</label>
-                      <input type="number" value={strategyParams.targetProfit} onChange={(e) => setStrategyParams({...strategyParams, targetProfit: parseFloat(e.target.value) || 0})} className="w-full bg-zinc-800/50 border border-zinc-700 p-4 rounded-2xl font-black text-xl text-[#D4AF37] outline-none focus:ring-1 ring-[#D4AF37]" />
-                    </div>
-                  </div>
-                </div>
-              </div>
+                        <div className="mt-auto p-10">
+                            <div className="quantum-card p-6 rounded-3xl bg-black/40 border-l-4 border-l-[#E2B04E]">
+                                <span className="text-[8px] font-black text-zinc-600 uppercase tracking-widest block mb-1">Patrimonio Neto</span>
+                                <span className="text-xl font-bold luxury-font text-white">{format(stats.total)}</span>
+                            </div>
+                        </div>
+                    </aside>
 
-              <div className="bg-gradient-to-br from-[#111] to-black rounded-[4rem] p-16 border border-[#D4AF37]/10 text-center shadow-2xl relative">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative z-10">
-                  <div className="space-y-2">
-                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.4em]">Punto de Equilibrio</p>
-                    <p className="text-6xl font-black text-white">{stats.breakEvenUnits} <span className="text-sm text-zinc-600 uppercase">unid</span></p>
-                  </div>
-                  <div className="space-y-2 border-x border-zinc-800/50 px-4">
-                    <p className="text-[9px] font-black text-[#D4AF37] uppercase tracking-[0.4em]">Margen de Contribución</p>
-                    <p className="text-6xl font-black text-[#D4AF37]">{stats.marginRatio}%</p>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.4em]">Meta para Éxito</p>
-                    <p className="text-6xl font-black text-white">{stats.monthlyTarget} <span className="text-sm text-zinc-600 uppercase">unid</span></p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
-  );
-};
+                    {/* Main Arena */}
+                    <main className="flex-1 flex flex-col overflow-hidden">
+                        
+                        {/* Status Bar */}
+                        <header className="h-24 px-12 flex justify-between items-center border-b border-white/5 bg-black/20 backdrop-blur-md">
+                            <div className="flex items-center gap-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Sistemas: Activos</span>
+                                </div>
+                                <div className="h-4 w-px bg-zinc-800 mx-2"></div>
+                                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Nodo: <span className="text-[#E2B04E]">Lion-CR-HQ</span></span>
+                            </div>
+                            <div className="flex items-center gap-8">
+                                <div className="text-right">
+                                    <p className="text-[10px] font-black text-zinc-600 uppercase tracking-tighter">Comando Central</p>
+                                    <p className="text-[11px] font-bold text-white uppercase tracking-widest">{new Date().toLocaleDateString('es-CR')}</p>
+                                </div>
+                                <div className="w-12 h-12 rounded-xl border border-white/10 bg-gradient-to-br from-zinc-800 to-black p-0.5 group overflow-hidden">
+                                    <img src="image_b1b8e6.png" className="w-full h-full object-cover rounded-lg group-hover:scale-110 transition-transform duration-500" alt="Admin Profile"/>
+                                </div>
+                            </div>
+                        </header>
 
-export default App;
+                        <div className="flex-1 overflow-y-auto p-12 custom-scroll">
+                            <div className="max-w-7xl mx-auto space-y-12 fade-up">
+                                
+                                {activeTab === 'dashboard' && (
+                                    <div className="space-y-12">
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                            {[
+                                                { label: 'Efectivo Negocio', val: stats.bizBalance, icon: 'briefcase' },
+                                                { label: 'Fondo Personal', val: stats.persBalance, icon: 'user' },
+                                                { label: 'Punto de Equilibrio', val: stats.breakEven, icon: 'crosshair', sub: 'Servicios' },
+                                                { label: 'Estado Salud', val: stats.growth, icon: 'activity' }
+                                            ].map((c, i) => (
+                                                <div key={i} className="quantum-card p-8 rounded-[2rem] group relative overflow-hidden">
+                                                    <div className="absolute -bottom-4 -right-4 text-white/5 rotate-12 transition-transform group-hover:scale-150">
+                                                        <Icon name={c.icon} size={80}/>
+                                                    </div>
+                                                    <div className="flex justify-between items-start mb-6 relative z-10">
+                                                        <div className="p-3 bg-white/5 rounded-xl group-hover:bg-[#E2B04E]/20 transition-colors">
+                                                            <Icon name={c.icon} className="text-[#E2B04E]" />
+                                                        </div>
+                                                        <Icon name="chevron-right" size={14} className="text-zinc-700" />
+                                                    </div>
+                                                    <h3 className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.3em] mb-2 relative z-10">{c.label}</h3>
+                                                    <p className="text-2xl font-bold luxury-font text-white relative z-10">
+                                                        {typeof c.val === 'number' && !c.sub ? format(c.val) : `${c.val} ${c.sub || ''}`}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                                            <div className="lg:col-span-8 quantum-card p-10 rounded-[2.5rem]">
+                                                <div className="flex justify-between items-center mb-10">
+                                                    <div>
+                                                        <h3 className="luxury-font text-xl font-bold text-white italic">Vector de Capital</h3>
+                                                        <p className="text-[10px] text-zinc-600 uppercase font-bold tracking-widest mt-1">Análisis de rendimiento financiero</p>
+                                                    </div>
+                                                </div>
+                                                <div className="h-80 w-full">
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <AreaChart data={entries.length > 0 ? [...entries].reverse().slice(0,12) : [{date: '', amt: 0}]}>
+                                                            <defs>
+                                                                <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
+                                                                    <stop offset="5%" stopColor="#E2B04E" stopOpacity={0.3}/>
+                                                                    <stop offset="95%" stopColor="#E2B04E" stopOpacity={0}/>
+                                                                </linearGradient>
+                                                            </defs>
+                                                            <CartesianGrid strokeDasharray="3 3" stroke="#151515" vertical={false} />
+                                                            <XAxis dataKey="date" hide />
+                                                            <YAxis hide />
+                                                            <Tooltip 
+                                                                contentStyle={{ background: '#0a0a0a', border: '1px solid #E2B04E', borderRadius: '12px' }}
+                                                                itemStyle={{ color: '#E2B04E', fontSize: '10px' }}
+                                                                formatter={(v) => format(v)}
+                                                            />
+                                                            <Area type="monotone" dataKey="amt" stroke="#E2B04E" strokeWidth={3} fillOpacity={1} fill="url(#goldGrad)" />
+                                                        </AreaChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                            </div>
+
+                                            <div className="lg:col-span-4 space-y-8">
+                                                <div className="quantum-card p-8 rounded-[2rem] bg-gradient-to-br from-[#E2B04E]/5 to-transparent border-t-2 border-t-[#E2B04E]/20">
+                                                    <div className="flex items-center gap-3 mb-6">
+                                                        <img src={LOGO_URL} className="w-6 h-6 object-contain" alt="Mini Lion Logo"/>
+                                                        <h4 className="text-[10px] font-black text-[#E2B04E] uppercase tracking-[0.4em]">Lion Insight</h4>
+                                                    </div>
+                                                    <div className="p-4 bg-black/50 rounded-2xl border border-white/5">
+                                                        <p className="text-[10px] leading-relaxed text-zinc-400 italic">
+                                                            "El flujo de caja actual muestra una resiliencia excepcional. Manteniendo este margen, la meta patrimonial se alcanzaría un 15% antes de lo proyectado."
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeTab === 'ledger' && (
+                                    <div className="space-y-12">
+                                        <div className="flex justify-between items-center">
+                                            <h2 className="luxury-font text-3xl font-bold text-white tracking-widest italic">Archivo <span className="text-[#E2B04E]">Transaccional</span></h2>
+                                        </div>
+                                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                                            <div className="lg:col-span-4">
+                                                <div className="quantum-card p-10 rounded-[2.5rem]">
+                                                    <form onSubmit={(e) => {
+                                                        e.preventDefault();
+                                                        const fd = new FormData(e.target);
+                                                        const val = parseFloat(fd.get('amt'));
+                                                        if(!val) return;
+                                                        setEntries([{
+                                                            id: Date.now(),
+                                                            amt: Math.abs(val),
+                                                            type: val >= 0 ? 'in' : 'out',
+                                                            desc: fd.get('desc'),
+                                                            cat: fd.get('cat'),
+                                                            date: new Date().toLocaleDateString('es-CR')
+                                                        }, ...entries]);
+                                                        e.target.reset();
+                                                        confetti({ particleCount: 50, spread: 70, colors: ['#E2B04E', '#ffffff'] });
+                                                    }} className="space-y-8">
+                                                        <div>
+                                                            <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2 block">Monto Transaccional (CRC)</label>
+                                                            <input name="amt" type="number" step="any" required className="w-full bg-transparent p-4 text-4xl font-bold luxury-font text-white border-b border-white/10 outline-none focus:border-[#E2B04E]" placeholder="0.00"/>
+                                                        </div>
+                                                        <div className="space-y-4">
+                                                            <select name="cat" className="w-full p-4 rounded-xl bg-white/5 border border-white/5 text-[10px] font-black text-white outline-none">
+                                                                <option value="biz">LionTech Solutions</option>
+                                                                <option value="pers">Patrimonio Personal</option>
+                                                            </select>
+                                                            <input name="desc" required placeholder="Concepto de la operación..." className="w-full p-4 rounded-xl bg-white/5 border border-white/5 text-[10px] font-bold text-white outline-none"/>
+                                                        </div>
+                                                        <button type="submit" className="w-full py-5 rounded-xl glow-btn luxury-font font-bold uppercase text-[10px] tracking-widest">Registrar Operación</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                            <div className="lg:col-span-8 quantum-card rounded-[2.5rem] overflow-hidden">
+                                                <div className="max-h-[500px] overflow-y-auto custom-scroll">
+                                                    <table className="w-full text-left">
+                                                        <thead>
+                                                            <tr className="border-b border-white/5 bg-black/40">
+                                                                <th className="p-6 text-[8px] font-black text-zinc-600 uppercase">Descripción</th>
+                                                                <th className="p-6 text-[8px] font-black text-zinc-600 uppercase">Estado</th>
+                                                                <th className="p-6 text-right text-[8px] font-black text-zinc-600 uppercase">Monto</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-white/5">
+                                                            {entries.length === 0 ? (
+                                                                <tr>
+                                                                    <td colSpan="3" className="p-20 text-center text-zinc-600 italic text-[10px] uppercase tracking-widest">Esperando datos transaccionales...</td>
+                                                                </tr>
+                                                            ) : (
+                                                                entries.map(e => (
+                                                                    <tr key={e.id} className="hover:bg-white/5 transition-all group">
+                                                                        <td className="p-6">
+                                                                            <p className="text-[11px] font-bold text-white group-hover:text-[#E2B04E]">{e.desc}</p>
+                                                                            <p className="text-[9px] font-black text-zinc-600 mt-1 uppercase tracking-widest">{e.date}</p>
+                                                                        </td>
+                                                                        <td className="p-6">
+                                                                            <span className={`text-[8px] px-3 py-1 rounded-full border ${e.type === 'in' ? 'border-emerald-500/30 text-emerald-500' : 'border-zinc-700 text-zinc-500'} font-black uppercase`}>
+                                                                                {e.type === 'in' ? 'Activo' : 'Gasto'}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className={`p-6 text-right luxury-font font-bold ${e.type === 'in' ? 'text-white' : 'text-zinc-500 opacity-60'}`}>
+                                                                            {format(e.amt)}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeTab === 'strategy' && (
+                                    <div className="space-y-12">
+                                        <div className="text-center">
+                                            <h2 className="luxury-font text-4xl font-bold text-white italic tracking-widest">Quantum <span className="text-[#E2B04E]">Scaling</span></h2>
+                                            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.4em] mt-4">Simulador de Expansión Corporativa</p>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                            {[
+                                                { label: 'Gastos Fijos', key: 'fixed' },
+                                                { label: 'Precio Servicio', key: 'price' },
+                                                { label: 'Costo Operativo', key: 'cost' },
+                                                { label: 'Meta Patrimonio', key: 'target' }
+                                            ].map(f => (
+                                                <div key={f.key} className="quantum-card p-10 rounded-[2rem]">
+                                                    <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-4">{f.label}</p>
+                                                    <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                                                        <span className="text-[#E2B04E] font-bold">₡</span>
+                                                        <input 
+                                                            type="number" 
+                                                            value={strategy[f.key]} 
+                                                            onChange={e => setStrategy({...strategy, [f.key]: parseFloat(e.target.value) || 0})}
+                                                            className="w-full bg-transparent text-xl font-bold text-white outline-none luxury-font"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        
+                                        <div className="quantum-card p-12 rounded-[3rem] bg-gradient-to-r from-black via-zinc-900 to-black text-center border-l-2 border-l-[#E2B04E]">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                                                <div>
+                                                    <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em] mb-4">Margen Neto Unitario</p>
+                                                    <p className="text-5xl font-bold text-white luxury-font italic tracking-tighter">{format(strategy.price - strategy.cost)}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em] mb-4">Eficiencia Operativa</p>
+                                                    <p className="text-5xl font-bold text-[#E2B04E] luxury-font italic tracking-tighter">
+                                                        {strategy.price > 0 ? (((strategy.price - strategy.cost) / strategy.price) * 100).toFixed(1) : 0}%
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
